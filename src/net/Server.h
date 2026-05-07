@@ -8,7 +8,6 @@
 
 namespace net{
 
-struct Client;
 
 class Server{
 public:
@@ -19,7 +18,7 @@ public:
   void Start();
 
   // Accept conn, create client, set state to AUTH
-  Client AcceptClient();
+  void AcceptClient();
 
   Server(const uint16_t port, std::string& name);
 
@@ -28,4 +27,5 @@ private:
   std::vector<pollfd> pollfds{};
 };
 } // net
+
 #endif

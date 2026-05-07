@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace net{
+namespace core{
 
 enum class ClientState{
   AUTH,

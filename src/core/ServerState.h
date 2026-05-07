@@ -5,13 +5,11 @@
 #include <vector>
 #include <string>
 
-#include "../net/Client.h"
+
+#include "../core/Client.h"
+
 
 namespace core{
-
-class Channel;
-struct Client;
-
 class ServerState{
 public:
 
@@ -23,10 +21,10 @@ public:
 
 private:
   // fd -> Client
-  std::unordered_map<int, Client>          connected_clients{};
+  std::unordered_map<int, core::Client>          connected_clients{};
 
   // Chan name -> Channel
-  std::unordered_map<std::string, Channel> channels{};
+  //std::unordered_map<std::string, Channel> channels{};
 
 };
 } // core
