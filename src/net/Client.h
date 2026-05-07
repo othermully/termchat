@@ -20,6 +20,8 @@ struct Client{
   std::string m_output_buffer{};
 
   ClientState state{};
+
+  Client(int fd) : m_fd { fd }{};
 };
 } // net
 

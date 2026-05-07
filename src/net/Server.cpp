@@ -52,17 +52,16 @@ net::Server::Server(const uint16_t port, std::string& name){
 
 // accept client, create client object, set client state, add to connected_clients
 // only add to polling pfds once client is fully registered
-net::Client net::Server::AcceptClient(core::ServerState& state, int fd){
+net::Client net::Server::AcceptClient(){
   int client_fd = accept(Server::m_fd, nullptr, nullptr);
   if (client_fd < 0) {
     std::cout << "Failed to accept client: " << errno << std::endl;
     errno = 0;
   }
 
-  net::Client new_client{};
+  net::Client new_client { client_fd };
   new_client.m_fd = client_fd;
   new_client.state = net::ClientState::AUTH;
-
 
   return new_client;
 }
@@ -71,7 +70,6 @@ net::Client net::Server::AcceptClient(core::ServerState& state, int fd){
 void net::Server::Start(){
   // Initialize server state 
   core::ServerState state;
-  int timeout_msec = 500;
 
   while (true) {
   

@@ -9,7 +9,6 @@
 namespace net{
 
 struct Client;
-class ServerState;
 
 class Server{
 public:
@@ -20,7 +19,7 @@ public:
   void Start();
 
   // Accept conn, create client, set state to AUTH
-  Client AcceptClient(ServerState& state, int fd);
+  Client AcceptClient();
 
   Server(const uint16_t port, std::string& name);
 
