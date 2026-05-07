@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cerrno>
 #include <cstdint>
 #include <iostream>
 #include <ostream>
@@ -9,11 +10,18 @@
 #include <unistd.h>
 #include <poll.h>
 #include <netinet/in.h>
+#include <fcntl.h>
 
 #include <unordered_map>
 #include <vector>
 
 #define BUFFER_SIZE 4096
+
+int setNonBlocking(int fd){
+  int flags = fcntl(fd, F_GETFL, 0); 
+  if (flags == -1) return -1;
+  return fcntl(fd, F_SETFL, flags | O_NONBLOCK); 
+}
 
 namespace CHANNEL{
 class Channel{
@@ -104,45 +112,72 @@ public:
 
     char buffer[BUFFER_SIZE];
     ssize_t bytes_received = recv(fd, buffer, sizeof(buffer), 0);
-    if (bytes_received <= 0) {
+
+    if (bytes_received > 0) {
+      // Handle bytes
+      std::cout << connected_clients[fd].nickname << " :> " << buffer << std::endl;
+    }
+
+    else if (bytes_received == 0) {
       std::cout << "Lost client " << "(" << connected_clients[fd].nickname << ")" << " connection.\n";
       DisconnectClient(fd);
       return;
     }
 
+    else {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        // nothing to read right now
+        return;
+      }
 
-    std::cout << connected_clients[fd].nickname << " :> " << buffer << std::endl;
+      // actual socket error
+      DisconnectClient(fd);
+      return;
+    }
 
     return;
   }
 
   void AuthClient(const int fd){
+    // TODO: Accept client -> Transistion to auth state -> later POLLIN arrives -> Read nick incrementally -> transition to CONNECTED state
 
     std::string welcome_msg = { "Welcome, please enter a nickname:" };
     send(fd, welcome_msg.c_str(), sizeof(welcome_msg), 0);
 
-    char buffer[BUFFER_SIZE] = { '\0' };
+    char buffer[BUFFER_SIZE];
     ssize_t bytes_received = recv(fd, buffer, sizeof(buffer), 0);
-    if (bytes_received <= 0) {
+    if (bytes_received == 0) {
       std::cout << "Lost client " << fd << " connection.\n";
       DisconnectClient(fd);
 
       return;
     }
 
-    CLIENT::Client new_client{};
-    new_client.fd_      = fd;
-    new_client.nickname = buffer;
+    else if (bytes_received > 0) {
+      CLIENT::Client new_client{};
+      new_client.fd_      = fd;
+      new_client.nickname = buffer;
 
-    connected_clients.insert( { new_client.fd_, new_client } );
-    std::cout << "Client " << "'" << new_client.nickname << "'" << " accepted.\n";
+      connected_clients.insert( { new_client.fd_, new_client } );
+      std::cout << "Client " << "'" << new_client.nickname << "'" << " accepted.\n";
+    }
+
+    else {
+      if (errno == EAGAIN || errno == EWOULDBLOCK) {
+        //  nothing to read right now
+        return;
+      }
+
+      // Actual socket error
+      DisconnectClient(fd);
+      return;
+    }
 
     return;
   };
 
   void AddChannel(int id, CHANNEL::Channel& chan){
     channels.insert( {id, chan });
-    std::cout << "Channel " << chan.GetName() << std::endl;
   };
 
 private:
@@ -179,6 +214,8 @@ public:
             // New connection
             int client_conn = accept(fd, nullptr, nullptr);
 
+            setNonBlocking(client_conn);
+
             pollfd client_poll;
             client_poll.fd = client_conn;
             client_poll.events = POLLIN;
@@ -186,13 +223,13 @@ public:
 
             server_state.AuthClient(client_conn);
             //server_state.JoinChannel(client_conn, main_chan);
-            main_chan.AddMember(client_conn);
+            //main_chan.AddMember(client_conn);
 
           }
           else {
             // Existing connection
             server_state.HandleClient(pfds[i].fd);
-            main_chan.Broadcast("Hello from main_chan!");
+            //main_chan.Broadcast("Hello from main_chan!");
           }
 
         }
@@ -209,6 +246,7 @@ public:
     }
 
     fd = server_socket;
+    setNonBlocking(server_socket);
 
     // define addr stuct
     sockaddr_in addr{};
