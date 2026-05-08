@@ -15,9 +15,16 @@ public:
 
   void JoinChannel();
   void LeaveChannel();
-  void AuthClient();
+
+  void AuthClient(int fd);
+  void DisconnectClient(int fd);
 
   void AddConnectedClient();
+
+  core::Client& GetClient(int fd){
+    return connected_clients[fd];
+  }
+
 
 private:
   // fd -> Client

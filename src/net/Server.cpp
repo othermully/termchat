@@ -1,16 +1,37 @@
 #include "Server.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <iostream>
 #include <cstdint>
 #include <stdexcept>
+#include <sys/poll.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <poll.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "../core/ServerState.h"
 
 #define BUFFER_SIZE 4096
+
+
+int net::setNonBlocking(int fd){
+  int flags = fcntl(fd, F_GETFL, 0);
+  if (flags == -1) return -1;
+  return fcntl(fd, F_SETFL, flags | O_NONBLOCK); 
+}
+
+void net::Server::CleanupFd(int fd){
+  close(fd);
+  pollfds.erase(
+      std::remove_if(pollfds.begin(), pollfds.end(), [&](pollfd const & pfd){
+	return pfd.fd == fd;
+	}),
+      pollfds.end()
+      );
+}
 
 // constructor
 net::Server::Server(const uint16_t port, std::string& name){
@@ -19,6 +40,8 @@ net::Server::Server(const uint16_t port, std::string& name){
     throw std::runtime_error("socket error");
     exit(1);
   }
+
+  setNonBlocking(server_socket);
 
   struct sockaddr_in     addr{};
   addr.sin_family      = AF_INET;
@@ -49,21 +72,82 @@ net::Server::Server(const uint16_t port, std::string& name){
   std::cout << "Listening on port " << port << std::endl;
 }
 
-void net::Server::AcceptClient(){
+void net::Server::HandleRead([[maybe_unused]] core::ServerState& state, int fd){
+  // Check if client is registered
+
+  // TODO: throw bytes into parser, generate message, dispatch based on command
+  char buffer[BUFFER_SIZE];
+
+  ssize_t bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+  if (bytes_received > 0) {
+    std::cout << "Client says: " << buffer << std::endl;
+    
+    return;
+  }
+
+  else if (bytes_received == 0) {
+    // This is how disconnects should be handled, i think
+    std::cout << "Lost client connection.\n";
+    state.DisconnectClient(fd); // Remove from connected_clients;
+    CleanupFd(fd);
+    
+    return;
+  }
+
+  else {
+    if (errno == EAGAIN || errno == EWOULDBLOCK) {
+      // nothing to read right now
+      return;
+    }
+
+    // actual socket error here
+    state.DisconnectClient(fd);
+    CleanupFd(fd);
+    return;
+  }
+}
+
+int net::Server::AcceptClient(){
   int client_fd = accept(Server::m_fd, nullptr, nullptr);
   if (client_fd < 0) {
     std::cout << "Failed to accept client: " << errno << std::endl;
     errno = 0;
   }
 
+  setNonBlocking(client_fd);
+  std::cout << "Client " << client_fd << " accepted.\n";
+
+  pollfd pfd{};
+  pfd.fd     = client_fd;
+  pfd.events = POLLIN;
+  pollfds.push_back(pfd);
+
+  return client_fd;
 }
 
 // Main event loop
 void net::Server::Start(){
   // Initialize server state 
-  core::ServerState state;
+  core::ServerState state{};
 
   while (true) {
-  
+    int ret = poll(pollfds.data(), pollfds.size(), -1);
+    if (ret <= 0) continue;
+
+    for (size_t i = 0; i < pollfds.size(); ++i) {
+      // Read to read
+      if (pollfds[i].revents & POLLIN) {
+	// New connection
+        if (pollfds[i].fd == m_fd) {
+	  int client_fd = AcceptClient();
+	  state.AuthClient(client_fd);
+
+        }
+	// Existing connection
+        else {
+	  HandleRead(state, pollfds[i].fd);
+        }
+      }
+    }
   }
 };

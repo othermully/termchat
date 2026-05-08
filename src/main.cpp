@@ -6,5 +6,8 @@ int main(){
 
   std::string name { "My server" };
   net::Server server(port, name);
+
+  server.Start();
+
   return 0;
 }
