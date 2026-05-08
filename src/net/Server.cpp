@@ -13,6 +13,8 @@
 #include <unistd.h>
 
 #include "../core/ServerState.h"
+#include "../chat/Parser.h"
+#include "../chat/Message.h"
 
 #define BUFFER_SIZE 4096
 
@@ -81,6 +83,8 @@ void net::Server::HandleRead([[maybe_unused]] core::ServerState& state, int fd){
   ssize_t bytes_received = recv(fd, buffer, sizeof(buffer), 0);
   if (bytes_received > 0) {
     std::cout << "Client says: " << buffer << std::endl;
+    std::string message = buffer;
+    chat::Message msg = chat::Parser::ParseBytes(message);
     
     return;
   }
