@@ -21,6 +21,10 @@ public:
 
   void AddConnectedClient();
 
+  void RegisterClient(core::Client& client);
+
+  void CommandDispatcher(std::string& cmd, core::Client& client);
+
   core::Client& GetClient(int fd){
     return connected_clients[fd];
   }

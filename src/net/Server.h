@@ -29,6 +29,8 @@ public:
 
   void CleanupFd(int fd); // Disconnect handler for file descriptors
 
+  void SendToClient(int fd, core::ServerState& state, std::string& msg);
+
   Server(const uint16_t port, std::string& name);
 
 private:

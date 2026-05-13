@@ -14,14 +14,12 @@ enum class ClientState{
 struct Client{
   int         m_fd{};
   std::string m_nickname{};
-  std::string m_username{};
 
   std::string m_input_buffer{};
   std::string m_output_buffer{};
 
   ClientState state{};
 
-  Client(int fd) : m_fd { fd }{};
 };
 } // net
 

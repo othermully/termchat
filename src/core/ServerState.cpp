@@ -13,7 +13,8 @@ void core::ServerState::DisconnectClient(int fd){
 void core::ServerState::AuthClient(int fd){
   std::cout << "Authenticating client: " << fd << std::endl;
 
-  core::Client client{ fd };
+  core::Client client;
+  client.m_fd = fd;
   client.state = core::ClientState::AUTH;
   connected_clients.insert( {fd, client} );
 
@@ -21,3 +22,22 @@ void core::ServerState::AuthClient(int fd){
 
   return;
 }
+
+void core::ServerState::CommandDispatcher(std::string& cmd, core::Client& client){
+
+  if (cmd == "REGISTER") {
+    RegisterClient(client);
+  }
+
+  else {
+    std::cout << "Command not found.\n";
+  }
+
+}
+
+
+void core::ServerState::RegisterClient([[maybe_unused]] core::Client& client){
+  std::cout << "Client registration...\n";
+  client.m_output_buffer = "Enter a nickname: ";
+}
+

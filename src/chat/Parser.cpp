@@ -1,28 +1,32 @@
+#include <iostream>
+
 #include "Parser.h"
 #include "Message.h"
 
-#include <iostream>
 
-chat::Message chat::Parser::ParseBytes(std::string& bytes){
+chat::Message chat::Parser::ParseBuffer(std::string& buffer){
   Message msg{};
-  std::cout << "Parsing: " << bytes << std::endl;
 
-  msg.m_prefix = chat::Parser::GetPrefix();
+  if (buffer[0] == '!') {
+    std::string cmd = chat::Parser::ParseCommand(buffer);
+    msg.command = cmd;
+  }
+
+  else {
+    msg.chat_message = buffer;
+  }
+
   return msg;
 }
 
-std::string chat::Parser::GetPrefix(){
-  std::string prefix{};
-  return prefix;
-}
+std::string chat::Parser::ParseCommand(const std::string& str){
+  std::string command{};
 
-std::vector<std::string> chat::Parser::GetArguments(){
-  std::vector<std::string> args{};
-  return args;
-}
+  size_t pos = str.find(' ');
+  command = str.substr(1, pos);
 
-std::string chat::Parser::GetTrailing(){
-  std::string trailing{};
-  return trailing;
+  std::cout << "Got command: " << command << std::endl;
 
-}
+  return command;
+};
+

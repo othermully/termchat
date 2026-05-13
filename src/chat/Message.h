@@ -6,9 +6,8 @@
 
 namespace chat{
 struct Message{
-  std::string 		   m_prefix{};
-  std::vector<std::string> m_args{};
-  std::string 		   m_trailing{};
+  std::string command{};
+  std::string chat_message{};
 };
 } // chat
 

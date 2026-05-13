@@ -1,3 +1,5 @@
+// TODO: Server::HandleRead, ServerState::CommandDispatcher, Server::SendToClient, ServerState::RegisterClient
+
 #include "Server.h"
 
 #include <algorithm>
@@ -75,16 +77,28 @@ net::Server::Server(const uint16_t port, std::string& name){
 }
 
 void net::Server::HandleRead([[maybe_unused]] core::ServerState& state, int fd){
-  // Check if client is registered
-
-  // TODO: throw bytes into parser, generate message, dispatch based on command
+    // TODO: throw bytes into parser, generate message, dispatch based on command
   char buffer[BUFFER_SIZE];
 
   ssize_t bytes_received = recv(fd, buffer, sizeof(buffer), 0);
   if (bytes_received > 0) {
-    std::cout << "Client says: " << buffer << std::endl;
-    std::string message = buffer;
-    chat::Message msg = chat::Parser::ParseBytes(message);
+    // Check if client is registered
+    if (state.GetClient(fd).state == core::ClientState::AUTH) {
+      state.GetClient(fd).m_output_buffer = "You must register first, type !REGISTER.";
+
+      send(fd, state.GetClient(fd).m_output_buffer.c_str(), state.GetClient(fd).m_output_buffer.size(), 0);
+      state.GetClient(fd).m_output_buffer.clear();
+    }
+
+    std::string chat_message = buffer;
+    chat::Message msg = chat::Parser::ParseBuffer(chat_message);
+
+    if (!msg.command.empty()) {
+      state.CommandDispatcher(msg.command, state.GetClient(fd));
+    }
+    else {
+      std::cout << "Client says: " << msg.chat_message << '\n';
+    }
     
     return;
   }
@@ -107,9 +121,11 @@ void net::Server::HandleRead([[maybe_unused]] core::ServerState& state, int fd){
     // actual socket error here
     state.DisconnectClient(fd);
     CleanupFd(fd);
+
     return;
   }
 }
+
 
 int net::Server::AcceptClient(){
   int client_fd = accept(Server::m_fd, nullptr, nullptr);
@@ -127,6 +143,10 @@ int net::Server::AcceptClient(){
   pollfds.push_back(pfd);
 
   return client_fd;
+}
+
+void net::Server::SendToClient(int fd, core::ServerState& state, std::string& msg){
+      send(fd, state.GetClient(fd).m_output_buffer.c_str(), state.GetClient(fd).m_output_buffer.size(), 0);
 }
 
 // Main event loop

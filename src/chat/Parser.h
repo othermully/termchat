@@ -11,15 +11,10 @@ struct Message;
 class Parser{
 public:
 
-  static Message ParseBytes(std::string& bytes);
-
+  static Message ParseBuffer(std::string& buffer);
   
 private:
-  std::string 		   GetPrefix();
-  std::vector<std::string> GetArguments();
-  std::string 		   GetTrailing();
-
-  std::string m_raw_bytes_;
+  static std::string ParseCommand(const std::string& str);
 
 };
 } // chat

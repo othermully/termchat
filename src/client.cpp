@@ -46,6 +46,10 @@ int main(){
   setNonBlocking(client_poll.fd);
 
   while (true) {
+    char buffer[1024] = { '\0' };
+    recv(client_socket, buffer, sizeof(buffer), 0);
+    std::cout << buffer << std::endl;
+
     std::cout << "> ";
     std::string client_msg{};
     std::getline(std::cin, client_msg);
