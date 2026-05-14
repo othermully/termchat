@@ -24,7 +24,7 @@ public:
   void Start();
 
   // Accept conn, create client, set state to AUTH
-  int AcceptClient();
+  int AcceptClient(core::ServerState& state);
   void HandleRead(core::ServerState& state, int fd);
 
   void CleanupFd(int fd); // Disconnect handler for file descriptors

@@ -77,29 +77,28 @@ net::Server::Server(const uint16_t port, std::string& name){
 }
 
 void net::Server::HandleRead([[maybe_unused]] core::ServerState& state, int fd){
-    // TODO: throw bytes into parser, generate message, dispatch based on command
+  // TODO: throw bytes into parser, generate message, dispatch based on command
   char buffer[BUFFER_SIZE];
 
   ssize_t bytes_received = recv(fd, buffer, sizeof(buffer), 0);
-  if (bytes_received > 0) {
-    // Check if client is registered
-    if (state.GetClient(fd).state == core::ClientState::AUTH) {
-      state.GetClient(fd).m_output_buffer = "You must register first, type !REGISTER.";
+  if (bytes_received > 0) 
+  {
 
-      send(fd, state.GetClient(fd).m_output_buffer.c_str(), state.GetClient(fd).m_output_buffer.size(), 0);
-      state.GetClient(fd).m_output_buffer.clear();
-    }
+    std::string msg(buffer);
+    std::cout << "Received: " << msg << std::endl;
 
-    std::string chat_message = buffer;
-    chat::Message msg = chat::Parser::ParseBuffer(chat_message);
+    if (!state.CheckAuthenticated(fd)) {
+      state.AuthClient(fd, msg);
+      std::string response { "200 AUTH OK\n" };
 
-    if (!msg.command.empty()) {
-      state.CommandDispatcher(msg.command, state.GetClient(fd));
+      send(fd, response.c_str(), response.size(), 0);
     }
     else {
-      std::cout << "Client says: " << msg.chat_message << '\n';
+      std::string response = "Echo: " + msg;
+
+      send(fd, response.c_str(), response.size(), 0);
     }
-    
+
     return;
   }
 
@@ -107,6 +106,8 @@ void net::Server::HandleRead([[maybe_unused]] core::ServerState& state, int fd){
     // This is how disconnects should be handled, i think
     std::cout << "Lost client connection.\n";
     state.DisconnectClient(fd); // Remove from connected_clients;
+
+    // Close file descriptor, remove from polligns fds
     CleanupFd(fd);
     
     return;
@@ -126,8 +127,7 @@ void net::Server::HandleRead([[maybe_unused]] core::ServerState& state, int fd){
   }
 }
 
-
-int net::Server::AcceptClient(){
+int net::Server::AcceptClient(core::ServerState& state){
   int client_fd = accept(Server::m_fd, nullptr, nullptr);
   if (client_fd < 0) {
     std::cout << "Failed to accept client: " << errno << std::endl;
@@ -135,17 +135,24 @@ int net::Server::AcceptClient(){
   }
 
   setNonBlocking(client_fd);
-  std::cout << "Client " << client_fd << " accepted.\n";
 
   pollfd pfd{};
   pfd.fd     = client_fd;
   pfd.events = POLLIN;
   pollfds.push_back(pfd);
 
+  core::Client client;
+  client.m_fd = client_fd;
+  client.state = core::ClientState::CONNECTED;
+  state.AddConnectedClient(client);
+
+  std::cout << "Client " << client_fd << " accepted.\n";
+
+
   return client_fd;
 }
 
-void net::Server::SendToClient(int fd, core::ServerState& state, std::string& msg){
+void net::Server::SendToClient(int fd, core::ServerState& state, [[maybe_unused]]std::string& msg){
       send(fd, state.GetClient(fd).m_output_buffer.c_str(), state.GetClient(fd).m_output_buffer.size(), 0);
 }
 
@@ -163,8 +170,7 @@ void net::Server::Start(){
       if (pollfds[i].revents & POLLIN) {
 	// New connection
         if (pollfds[i].fd == m_fd) {
-	  int client_fd = AcceptClient();
-	  state.AuthClient(client_fd);
+	  [[maybe_unused]] int client_fd = AcceptClient(state);
 
         }
 	// Existing connection

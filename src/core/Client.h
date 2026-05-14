@@ -7,7 +7,7 @@ namespace core{
 
 enum class ClientState{
   AUTH,
-  REGISTERING,
+  CONNECTED,
   REGISTERED
 };
 

@@ -9,11 +9,25 @@
 #include <vector>
 #include <fcntl.h>
 
-
 int setNonBlocking(int fd){
   int flags = fcntl(fd, F_GETFL, 0);
   if (flags == -1) return -1;
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK); 
+}
+
+void authenticate(int fd){
+  std::string nick{};
+  char buffer[1024];
+
+  std::cout << "Enter a nickname: ";
+  std::getline(std::cin, nick);
+
+  send(fd, nick.c_str(), nick.size(), 0);
+  ssize_t bytes_received = recv(fd, buffer, sizeof(buffer), 0);
+  if (bytes_received > 0) {
+    std::cout << "Received from server: " << buffer << std::endl;
+  }
+
 }
 
 int main(){
@@ -45,6 +59,9 @@ int main(){
 
   setNonBlocking(client_poll.fd);
 
+  authenticate(client_socket);
+
+  // Main event loop
   while (true) {
     char buffer[1024] = { '\0' };
     recv(client_socket, buffer, sizeof(buffer), 0);

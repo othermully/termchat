@@ -16,17 +16,19 @@ public:
   void JoinChannel();
   void LeaveChannel();
 
-  void AuthClient(int fd);
+  void AuthClient(int fd, std::string& msg);
   void DisconnectClient(int fd);
 
-  void AddConnectedClient();
+  bool CheckAuthenticated(int fd);
+
+  void AddConnectedClient(Client& client);
 
   void RegisterClient(core::Client& client);
 
   void CommandDispatcher(std::string& cmd, core::Client& client);
 
   core::Client& GetClient(int fd){
-    return connected_clients[fd];
+    return connected_clients.at(fd);
   }
 
 

@@ -4,40 +4,29 @@
 #include <iostream>
 #include <unistd.h>
 
+void core::ServerState::AddConnectedClient(core::Client& client){
+  connected_clients.insert({client.m_fd, client});
+}
+
 void core::ServerState::DisconnectClient(int fd){
   close(fd);
   connected_clients.erase(fd);
 }
 
+bool core::ServerState::CheckAuthenticated(int fd){
+  if (ServerState::GetClient(fd).state == ClientState::REGISTERED) {
+    return true;
+  }
+  return false;
+}
 
-void core::ServerState::AuthClient(int fd){
-  std::cout << "Authenticating client: " << fd << std::endl;
+void core::ServerState::AuthClient(int fd, std::string& msg){
 
-  core::Client client;
-  client.m_fd = fd;
-  client.state = core::ClientState::AUTH;
-  connected_clients.insert( {fd, client} );
+  auto& client = connected_clients.at(fd);
+  client.m_nickname = msg;
+  client.state = ClientState::REGISTERED;
 
-  std::cout << "Client " << fd << " authenticated, need to register.\n";
-
+  std::cout << "client: " << client.m_nickname << " Registered" << std::endl;
   return;
-}
-
-void core::ServerState::CommandDispatcher(std::string& cmd, core::Client& client){
-
-  if (cmd == "REGISTER") {
-    RegisterClient(client);
-  }
-
-  else {
-    std::cout << "Command not found.\n";
-  }
-
-}
-
-
-void core::ServerState::RegisterClient([[maybe_unused]] core::Client& client){
-  std::cout << "Client registration...\n";
-  client.m_output_buffer = "Enter a nickname: ";
 }
 
