@@ -1,3 +1,5 @@
+// TODO: Socket -> Buffer -> Parser -> Command -> Response
+#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <sys/poll.h>
@@ -8,6 +10,9 @@
 #include <unordered_map>
 #include <poll.h>
 #include <fcntl.h>
+#include <unistd.h>
+
+
 
 int SetNonBlocking(int fd){
   int flags = fcntl(fd, F_GETFL, 0); 
@@ -72,10 +77,32 @@ public:
         if (m_pfds_[i].revents & POLLIN) {
           if (m_pfds_[i].fd == m_fd_) {
             // New connection
+            int client_fd = accept(m_fd_, nullptr, nullptr);
+
+            pollfd client_poll;
+            client_poll.events = POLLIN;
+            client_poll.fd = client_fd;
+            m_pfds_.push_back(client_poll);
+
+            SetNonBlocking(client_fd);
           }
 
           else {
             // Existing connection
+            char buffer[1024];
+            ssize_t bytes = recv(m_pfds_[i].fd, buffer, sizeof(buffer), 0);
+            if (bytes == 0) {
+              std::cout << "Lost client connection.\n";
+              CleanupFd(m_pfds_[i].fd);
+            }
+            if (bytes > 0) {
+              std::string response(buffer,(size_t)bytes);
+              std::cout << "Client says: " << response << std::endl;
+
+              send(m_pfds_[i].fd, response.c_str(), response.size(), 0);
+
+              response.clear();
+            }
           }
         
         }
@@ -87,10 +114,25 @@ private:
   int                 m_fd_{};
   std::vector<pollfd> m_pfds_{};
 
+private:
+
+  void CleanupFd(int fd){
+    close(fd);
+    m_pfds_.erase(
+      std::remove_if(m_pfds_.begin(), m_pfds_.end(), [&](pollfd const & pfd){
+        return pfd.fd == fd;
+        }),
+      m_pfds_.end()
+    );
+  }
+
 };
 }; // net
 
 int main(){
+
+  net::Server server;
+  server.Start();
 
   return 0;
 }

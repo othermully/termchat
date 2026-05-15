@@ -93,6 +93,7 @@ void net::Server::HandleRead([[maybe_unused]] core::ServerState& state, int fd){
 
       send(fd, response.c_str(), response.size(), 0);
     }
+
     else {
       std::string response = "Echo: " + msg;
 
